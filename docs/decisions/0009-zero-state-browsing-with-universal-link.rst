@@ -136,7 +136,7 @@ The following are the APIs that the learner portal interacts with to display the
   * Fetches enterprise customer data such as uuid, enterprise_customer_catalogs, etc. by the enterprise slug.
   * This is a protected endpoint.
   * There is a lite version ``GET /enterprise-customer/basic_list`` that currently returns only id and name of an enterprise. 
-    We will modify this to also include the enterprise_customer_catalogs and that will be the minimal information we need to render the page.
+  We will modify this to also include the enterprise_customer_catalogs and that will be the minimal information we need to render the page.
 
 - Algolia search API 
   * Queries Algolia for catalog data.
@@ -146,7 +146,7 @@ The following are the APIs that the learner portal interacts with to display the
   * Queries course-discovery to get course information once a user clicks on a course.
   * This is a protected endpoint.
   * Enterprise catalog also hosts course data. We could expose ``enterprise-catalogs/get_content_metadata/{key}`` as a public endpoint for the learner portal to query course data
-    without going through course-discovery. The enterprise-catalog is synced daily with course-discovery.
+  without going through course-discovery. The enterprise-catalog is synced daily with course-discovery.
 
 - enterprise-catalog ``GET /contains_content_items/``
   * Checks whether or not the specified content is available to the EnterpriseCustomer.
