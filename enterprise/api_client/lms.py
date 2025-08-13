@@ -20,9 +20,10 @@ from enterprise.constants import COURSE_MODE_SORT_ORDER, EXCLUDED_COURSE_MODES
 
 try:
     from openedx.core.djangoapps.embargo import api as embargo_api
+    from openedx.core.djangoapps.site_configuration.helpers import get_value
 except ImportError:
     embargo_api = None
-
+    get_value = None
 
 LOGGER = logging.getLogger(__name__)
 
@@ -307,7 +308,12 @@ class ThirdPartyAuthApiClient(UserAPIClient):
     The API client to make calls to the Third Party Auth API.
     """
 
-    API_BASE_URL = urljoin(f"{settings.LMS_INTERNAL_ROOT_URL}/", "api/third_party_auth/v0/")
+    def __init__(self, user, expires_in=settings.OAUTH_ID_TOKEN_EXPIRATION):
+        if get_value:
+            self.API_BASE_URL = urljoin(
+                f"{get_value('LMS_INTERNAL_ROOT_URL', settings.LMS_INTERNAL_ROOT_URL)}/", "api/third_party_auth/v0/",
+            )
+        super().__init__(user, expires_in)
 
     @UserAPIClient.refresh_token
     def get_remote_id(self, identity_provider, username):
