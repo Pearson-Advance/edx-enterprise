@@ -2,6 +2,6 @@
 Your project description goes here.
 """
 
-__version__ = "3.57.1.post7"
+__version__ = "3.57.1.post8"
 
 default_app_config = "enterprise.apps.EnterpriseConfig"
