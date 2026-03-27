@@ -7,14 +7,17 @@ from functools import wraps
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from crum import get_current_request, set_current_request
 from edx_django_utils.monitoring import set_code_owner_attribute
 
 from django.conf import settings
 from django.contrib import auth
+from django.contrib.sites.models import Site
 from django.core.cache import cache
 from django.utils import timezone
 
 from enterprise.utils import get_enterprise_uuids_for_user_and_course
+from enterprise.models import EnterpriseCustomer
 from integrated_channels.integrated_channel.constants import TASK_LOCK_EXPIRY_SECONDS
 from integrated_channels.integrated_channel.management.commands import (
     INTEGRATED_CHANNEL_CHOICES,
@@ -89,6 +92,38 @@ def _log_batch_task_finish(task_name, channel_code, job_user_id,
             duration_seconds=duration_seconds,
             details=extra_message
         ))
+
+
+def set_enterprise_customer_site_to_request(enterprise_customer):
+    """
+    Set the site of the current request to the site of the given enterprise customer.
+
+    This is necessary since during the transmission of learner data, the request's site is used to determine
+    the domain for LMS API calls. This ensures that the correct site configurations are used when making requests 
+    to the LMS.
+
+    We decided to rely on an external plugin to set the request context for tasks, if there's no request context,
+    then the site will be None and the task will use the default Django settings. In our case we'd use pearson-core.
+    """
+
+    request = get_current_request()
+    if not request:
+        LOGGER.warning('No current request found in context. Install "pearson-core" to set requests contexts to tasks.')
+        return
+
+    if request.site:
+        LOGGER.info('Current request already has a site set: %s', request.site.domain)
+        return
+
+    site = enterprise_customer.site
+    request.site = site
+
+    set_current_request(request)
+    LOGGER.info(
+        'Current request site set to %s EnterpriseCustomer\'s site with domain: %s',
+        enterprise_customer.name,
+        site.domain,
+    )
 
 
 @shared_task
@@ -263,6 +298,8 @@ def transmit_learner_data(username, channel_code, channel_pk):
     integrated_channel = INTEGRATED_CHANNEL_CHOICES[channel_code].objects.get(pk=channel_pk)
     _log_batch_task_start('transmit_learner_data', channel_code, api_user.id, integrated_channel)
 
+    set_enterprise_customer_site_to_request(integrated_channel.enterprise_customer)
+
     # Note: learner data transmission code paths don't raise any uncaught exception,
     # so we don't need a broad try-except block here.
     integrated_channel.transmit_learner_data(api_user)
@@ -359,6 +396,8 @@ def transmit_single_learner_data(username, course_run_id):
                 'transmit_single_learner_data started.'
             ))
 
+            set_enterprise_customer_site_to_request(integrated_channel.enterprise_customer)
+
             integrated_channel.transmit_single_learner_data(
                 learner_to_transmit=user,
                 course_run_id=course_run_id,
@@ -421,6 +460,8 @@ def transmit_single_subsection_learner_data(username, course_run_id, subsection_
                 subsection_id=subsection_id
             )
 
+            set_enterprise_customer_site_to_request(integrated_channel.enterprise_customer)
+
             duration = time.time() - start
             LOGGER.info(generate_formatted_log(
                 None,
@@ -451,6 +492,8 @@ def transmit_subsection_learner_data(job_username, channel_code, channel_pk):
     api_user = User.objects.get(username=job_username)
     integrated_channel = INTEGRATED_CHANNEL_CHOICES[channel_code].objects.get(pk=channel_pk)
     _log_batch_task_start('transmit_subsection_learner_data', channel_code, api_user.id, integrated_channel)
+
+    set_enterprise_customer_site_to_request(integrated_channel.enterprise_customer)
 
     # Exceptions during transmission are caught and saved within the audit so no need to try/catch here
     integrated_channel.transmit_subsection_learner_data(api_user)
