@@ -1713,6 +1713,28 @@ class CourseEnrollmentView(NonAtomicView):
             enterprise_customer.uuid,
             course_id=course_id
         ).consent_required()
+        # We've decided to automatically grant consent if the enterprise has
+        # set the enforce_data_sharing_consent config to EXTERNALLY_MANAGED
+        # since the user has already gone through the consent flow outside
+        # of the platform. We do this during the course enrollment process
+        # inside this course enrollment view. This way we can link the consent
+        # to the enterprise customer, course and user.
+        # The DSC record will be created for any course mode if the enterprise
+        # has set enforce_data_sharing_consent to EXTERNALLY_MANAGED, since this
+        # option indicates that the user has gone through the consent process
+        # outside of the platform for all courses inside the catalog.
+        if enterprise_customer.enforce_data_sharing_consent == enterprise_customer.EXTERNALLY_MANAGED:
+            data_sharing_consent.granted = True
+            data_sharing_consent.save(update_fields=['granted'])
+            LOGGER.info(
+                '[ENTERPRISE ENROLLMENT PAGE] Automatically granting data sharing consent since enterprise has set '
+                'enforce_data_sharing_consent to EXTERNALLY_MANAGED. Course: [%s], Username: [%s], Enterprise: [%s]',
+                course_id,
+                enterprise_customer_user.username,
+                enterprise_customer.name,
+            )
+            user_consent_needed = False
+
         if not selected_course_mode.get('premium') and not user_consent_needed:
             # For the audit course modes (audit, honor), where DSC is not
             # required, enroll the learner directly through enrollment API
@@ -1739,16 +1761,6 @@ class CourseEnrollmentView(NonAtomicView):
                     {'user': self.user_id, 'message': error_message},
                 )
             if succeeded:
-                # We've dediced to automatically grant consent if the enterprise has
-                # set the enforce_data_sharing_consent config to EXTERNALLY_MANAGED
-                # since the user has already gone through the consent flow outside
-                # of the platform. We do this during the course enrollment process
-                # insde this course enrollment view. This way we can link the consent
-                # to the enterprise customer, course and user.
-                if enterprise_customer.enforce_data_sharing_consent == enterprise_customer.EXTERNALLY_MANAGED:
-                    data_sharing_consent.granted = True
-                    data_sharing_consent.save()
-
                 try:
                     # Create the Enterprise backend database records for this course enrollment.
                     __, created = EnterpriseCourseEnrollment.objects.get_or_create(
