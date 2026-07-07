@@ -80,8 +80,31 @@ class Degreed2LearnerExporter(LearnerExporter):
                     enterprise_customer_uuid=enterprise_enrollment.enterprise_customer_user.enterprise_customer.uuid,
                     plugin_configuration_id=self.enterprise_configuration.id,
                 )
+            course_run_id = enterprise_enrollment.course_id
+            run_learner_transmission_record = Degreed2LearnerDataTransmissionAudit.objects.filter(
+                enterprise_course_enrollment_id=enterprise_enrollment.id,
+                course_id=course_run_id,
+            ).first()
+            if not run_learner_transmission_record:
+                run_learner_transmission_record = Degreed2LearnerDataTransmissionAudit(
+                    enterprise_course_enrollment_id=enterprise_enrollment.id,
+                    degreed_user_email=enterprise_enrollment.enterprise_customer_user.user_email,
+                    user_email=enterprise_enrollment.enterprise_customer_user.user_email,
+                    course_id=course_run_id,
+                    completed_timestamp=completed_date,
+                    content_title=content_title,
+                    progress_status=progress_status,
+                    degreed_completed_timestamp=degreed_completed_timestamp,
+                    course_completed=course_completed,
+                    grade=percent_grade,
+                    enterprise_customer_uuid=enterprise_enrollment.enterprise_customer_user.enterprise_customer.uuid,
+                    plugin_configuration_id=self.enterprise_configuration.id,
+                )
             # We return one record here, with the course key, that was sent to the integrated channel.
-            return [learner_transmission_record]
+            return [
+                learner_transmission_record,
+                run_learner_transmission_record,
+            ]
         LOGGER.info(generate_formatted_log(
             self.enterprise_configuration.channel_code(),
             enterprise_enrollment.enterprise_customer_user.enterprise_customer.uuid,

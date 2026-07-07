@@ -199,6 +199,7 @@ def is_already_transmitted(
     grade,
     subsection_id=None,
     detect_grade_updated=True,
+    course_id=None,
 ):
     """
     Returns: Boolean indicating if completion date for given enrollment is already sent of not.
@@ -210,12 +211,15 @@ def is_already_transmitted(
         subsection_id (Optional): The id of the subsection, needed if transmitting assessment level grades as there can
         be multiple per course.
         detect_grade_updated: default True. if this is False, method does not take into account grade changes
+        course_id: The id of the course, this is needed to ensure that we don't skip transmissions for the same course
+        but different course runs. 
     """
     try:
         already_transmitted = transmission.objects.filter(
             enterprise_course_enrollment_id=enterprise_enrollment_id,
             plugin_configuration_id=enterprise_configuration_id,
             is_transmitted=True,
+            course_id=course_id,
         )
         if subsection_id:
             already_transmitted = already_transmitted.filter(subsection_id=subsection_id)
