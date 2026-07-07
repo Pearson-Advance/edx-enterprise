@@ -296,8 +296,9 @@ class LearnerTransmitter(Transmitter, ChannelSettingsMixin):
         # one by course key and one by course run id.
         # If the transmission with the course key succeeds, the next one will get skipped.
         # If it fails, the one with the course run id will be attempted and (presumably) succeed.
+        learner_data_records = payload.export(**kwargs)
 
-        for learner_data in payload.export(**kwargs):
+        for learner_data in learner_data_records:
             serialized_payload = learner_data.serialize(enterprise_configuration=self.enterprise_configuration)
 
             enterprise_enrollment_id = learner_data.enterprise_course_enrollment_id
@@ -320,6 +321,7 @@ class LearnerTransmitter(Transmitter, ChannelSettingsMixin):
                 self.enterprise_configuration.id,
                 grade,
                 detect_grade_updated=self.INCLUDE_GRADE_FOR_COMPLETION_AUDIT_CHECK,
+                course_id=learner_data.course_id,
             ):
                 # We've already sent a completion status for this enrollment
                 continue
